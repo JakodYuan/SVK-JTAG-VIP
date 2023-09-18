@@ -1,4 +1,4 @@
-# JTAG-VIP
+# SVK-JTAG-VIP
 
 
 ## usage1
