@@ -13,23 +13,6 @@
 `define SVK_JTAG_ADDR_WIDTH 128
 `endif
 
-// usage1
-// svk_jtag jtag = svk_jtag::type_id::create("jtag");
-// jtag.vif = xxx;
-// jtag.trst_rst();
-// jtag.tms_rst();
-// 通过DAP访问系统寄存器
-// jtag.write_SYS_reg(base_addr, addr, data);
-// jtag.read_SYS_reg(base_addr, addr, data);
-
-// usage2
-// svk_jtag jtag = svk_jtag::type_id::create("jtag");
-// jtag.vif = xxx;
-// jtag.trst_rst();
-// jtag.tms_rst();
-// 通过DP访问系统寄存器(无AP)
-// jtag.write_AP_reg(addr, data);
-// jtag.read_AP_reg(addr, data);
 
 class svk_jtag  extends uvm_object;
     `uvm_object_utils(svk_jtag)
@@ -90,18 +73,18 @@ task svk_jtag::ir_scan(input  int                                width,
     logic tmp;
 
     tdo = 0;
-    vif.drive_jtag(1, 0, tmp); // run-test/idle -> select DR-scan
-    vif.drive_jtag(1, 0, tmp); // select DR-scan -> select IR-scan
-    vif.drive_jtag(0, 0, tmp); // select IR-scan -> capture-IR
-    vif.drive_jtag(0, 0, tmp); // capture-IR -> shift IR
+    vif.drive_jtag(1, 0, tmp);
+    vif.drive_jtag(1, 0, tmp);
+    vif.drive_jtag(0, 0, tmp);
+    vif.drive_jtag(0, 0, tmp);
 
-    for(int i = 0; i < width-1; ++i) begin // shift IR
-        vif.drive_jtag(0, tdi[i], tdo[i]); // 第一个tdo[0]不是有效数据
+    for(int i = 0; i < width-1; ++i) begin 
+        vif.drive_jtag(0, tdi[i], tdo[i]);
     end
 
-    vif.drive_jtag(1, tdi[width-1], tdo[width-1]); // shift IR -> exit1-IR
-    vif.drive_jtag(1, 0, tdo[width]); // exit1-IR->updata-IR  这个是最后一个有效数据
-    vif.drive_jtag(0, 0, tmp); // updata-IR -> run-test/idle
+    vif.drive_jtag(1, tdi[width-1], tdo[width-1]);
+    vif.drive_jtag(1, 0, tdo[width]);
+    vif.drive_jtag(0, 0, tmp);
 
 endtask
 
@@ -111,32 +94,32 @@ task svk_jtag::dr_scan(input  int                                width,
     logic tmp;
 
     tdo = 0;
-    vif.drive_jtag(1, 0, tmp); // run-test/idle -> select DR-scan
-    vif.drive_jtag(0, 0, tmp); // select DR-scan -> capture-DR
-    vif.drive_jtag(0, 0, tmp); // capture-DR -> shift DR
+    vif.drive_jtag(1, 0, tmp);
+    vif.drive_jtag(0, 0, tmp);
+    vif.drive_jtag(0, 0, tmp);
 
-    for(int i = 0; i < width-1; ++i) begin // shift DR
-        vif.drive_jtag(0, tdi[i], tdo[i]); // 第一个tdo[0]不是有效数据
+    for(int i = 0; i < width-1; ++i) begin
+        vif.drive_jtag(0, tdi[i], tdo[i]);
     end
 
-    vif.drive_jtag(1, tdi[width-1], tdo[width-1]); // shift DR -> exit1-DR
-    vif.drive_jtag(1, 0, tdo[width]); // exit1-DR->updata-DR  这个是最后一个有效数据
-    vif.drive_jtag(0, 0, tmp); // updata-DR -> run-test/idle
+    vif.drive_jtag(1, tdi[width-1], tdo[width-1]);
+    vif.drive_jtag(1, 0, tdo[width]);
+    vif.drive_jtag(0, 0, tmp);
 
 endtask
 
 task svk_jtag::drive_idle();
     logic tmp;
 
-    vif.drive_jtag(1, 0, tmp); // run-test/idle -> run-test/idle
+    vif.drive_jtag(1, 0, tmp);
 endtask
 
 task svk_jtag::tms_rst(int cycle_num=5);
     logic tmp;
     for(int i = 0; i < cycle_num; ++i)
-        vif.drive_jtag(1, 0, tmp); // xxx -> Test-Logic-Reset
+        vif.drive_jtag(1, 0, tmp);
 
-    vif.drive_jtag(0, 0, tmp); // Test-Logic-Reset -> run-test/idle
+    vif.drive_jtag(0, 0, tmp);
 endtask
 
 
@@ -153,13 +136,13 @@ task svk_jtag::read_DP_reg(input  logic [1:0]  addr,
     bit [35:0] tdo;
 
     forever begin
-        ir_scan(4, 'ha, tdo);   // select DPACC register
+        ir_scan(4, 'ha, tdo);
         tdi[34:3] = 'h0;
         tdi[2:1]  = addr;
         tdi[0]    = 1'b1;
         dr_scan(35, tdi, tdo);
         tdo >>= 1;
-        if(tdo[2:0] != 1) break; // ACK = 'b001 -> WAIT
+        if(tdo[2:0] != 1) break;
     end
     data = tdo[34:3];
 endtask
@@ -170,13 +153,13 @@ task svk_jtag::write_DP_reg(input logic [1:0]  addr,
     bit [35:0] tdo;
 
     forever begin
-        ir_scan(4, 'ha, tdo);   // select DPACC register
+        ir_scan(4, 'ha, tdo);
         tdi[34:3] = data;
         tdi[2:1]  = addr;
         tdi[0]    = 1'b0;
         dr_scan(35, tdi, tdo);
         tdo >>= 1;
-        if(tdo[2:0] != 1) break; // ACK = 'b001 -> WAIT
+        if(tdo[2:0] != 1) break;
     end
 
 endtask
@@ -187,16 +170,16 @@ task svk_jtag::read_AP_reg(input  logic [31:0] addr,
     bit [34:0] tdi;
     bit [35:0] tdo;
 
-    write_DP_reg(2'b10, {addr[31:4], 4'b0}); // write DP.SELECT
+    write_DP_reg(2'b10, {addr[31:4], 4'b0});
 
     forever begin
-        ir_scan(4, 'hb, tdo);   // select DPACC register
+        ir_scan(4, 'hb, tdo);
         tdi[34:3] = 'h0;
         tdi[2:1]  = addr[3:2];
         tdi[0]    = 1'b1;
         dr_scan(35, tdi, tdo);
         tdo >>= 1;
-        if(tdo[2:0] != 1) break; // ACK = 'b001 -> WAIT
+        if(tdo[2:0] != 1) break;
     end
     data = tdo[34:3];
 endtask
@@ -206,16 +189,16 @@ task svk_jtag::write_AP_reg(input logic [31:0] addr,
     bit [34:0] tdi;
     bit [35:0] tdo;
 
-    write_DP_reg(2'b10, {addr[31:4], 4'b0}); // write DP.SELECT
+    write_DP_reg(2'b10, {addr[31:4], 4'b0});
 
     forever begin
-        ir_scan(4, 'hb, tdo);   // select DPACC register
+        ir_scan(4, 'hb, tdo);
         tdi[34:3] = data;
         tdi[2:1]  = addr[3:2];
         tdi[0]    = 1'b0;
         dr_scan(35, tdi, tdo);
         tdo >>= 1;
-        if(tdo[2:0] != 1) break; // ACK = 'b001 -> WAIT
+        if(tdo[2:0] != 1) break;
     end
 
 endtask
