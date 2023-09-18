@@ -1,3 +1,7 @@
+/***********************************************************
+ *  Copyright (C) 2023 by JakodYuan (JakodYuan@outlook.com).
+ *  All right reserved.
+************************************************************/
 `ifndef SVK_JTAG_IF__SV
 `define SVK_JTAG_IF__SV
 
